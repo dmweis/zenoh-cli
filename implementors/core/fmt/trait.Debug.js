@@ -1,0 +1,6 @@
+(function() {var implementors = {
+"z_pub":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.71.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"struct\" href=\"z_pub/struct.Args.html\" title=\"struct z_pub::Args\">Args</a>"]],
+"z_put":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.71.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"struct\" href=\"z_put/struct.Args.html\" title=\"struct z_put::Args\">Args</a>"]],
+"z_scout":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.71.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"struct\" href=\"z_scout/struct.Args.html\" title=\"struct z_scout::Args\">Args</a>"]],
+"z_sub":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.71.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"struct\" href=\"z_sub/struct.Args.html\" title=\"struct z_sub::Args\">Args</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
