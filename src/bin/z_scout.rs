@@ -84,7 +84,19 @@ async fn main() {
 
     let _ = async {
         while let Ok(hello) = receiver.recv_async().await {
-            println!("{hello}");
+            let mut message = format!(
+                "Hello from {:?} with id {:?}\n",
+                hello.whatami,
+                hello
+                    .zid
+                    .map(|id| id.to_string())
+                    .unwrap_or(String::from("N/A"))
+            );
+            message.push_str("  Locators:\n");
+            for locator in hello.locators {
+                message.push_str(&format!("  - {}\n", locator));
+            }
+            println!("{}", message);
         }
     }
     .timeout(std::time::Duration::from_millis(args.scout_time_ms))
