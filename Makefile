@@ -15,3 +15,7 @@ install: build-deb
 .PHONY: install-deps
 install-deps:
 	cargo install cargo-deb
+
+.PHONY: build-docker
+build-docker:
+	DOCKER_BUILDKIT=1 docker build --tag zenoh-cli-builder --file Dockerfile --output type=local,dest=docker_out .

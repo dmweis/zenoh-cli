@@ -1,0 +1,8 @@
+.vscode
+.env
+.git
+.dockerignore
+target/
+Dockerfile
+docker_out/
+Makefile
