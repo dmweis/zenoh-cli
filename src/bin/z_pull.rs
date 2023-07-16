@@ -13,8 +13,8 @@
 //
 use async_std::prelude::FutureExt;
 use async_std::task::sleep;
-use old_clap::{App, Arg};
 use futures::prelude::*;
+use old_clap::{App, Arg};
 use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;

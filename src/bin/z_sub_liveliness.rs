@@ -12,9 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 use async_std::task::sleep;
-use old_clap::{App, Arg};
 use futures::prelude::*;
 use futures::select;
+use old_clap::{App, Arg};
 use std::convert::TryFrom;
 use std::time::Duration;
 use zenoh::config::Config;

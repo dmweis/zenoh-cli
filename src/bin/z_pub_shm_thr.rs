@@ -32,9 +32,13 @@ async fn main() {
         *b = rand::random::<u8>();
     }
 
-    let publisher = z.declare_publisher("test/thr")
-    // Make sure to not drop messages because of congestion control
-    .congestion_control(CongestionControl::Block).res().await.unwrap();
+    let publisher = z
+        .declare_publisher("test/thr")
+        // Make sure to not drop messages because of congestion control
+        .congestion_control(CongestionControl::Block)
+        .res()
+        .await
+        .unwrap();
 
     loop {
         publisher.put(buf.clone()).res().await.unwrap();
