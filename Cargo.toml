@@ -1,0 +1,100 @@
+[package]
+authors = ["David Weis <dweis7@gmail.com>"]
+description = "Collection of zenoh cli utilities based on the zenoh examples"
+edition = "2021"
+license = "EPL-2.0 OR Apache-2.0"
+name = "zenoh-cli"
+publish = false
+readme = "README.md"
+repository = "https://github.com/dmweis/zenoh-cli"
+version = "0.1.0"
+
+[[bin]]
+name = "z_scout"
+
+[[bin]]
+name = "z_info"
+
+[[bin]]
+name = "z_put"
+
+[[bin]]
+name = "z_put_float"
+
+[[bin]]
+name = "z_delete"
+
+[[bin]]
+name = "z_pub"
+
+[[bin]]
+name = "z_pub_shm"
+
+[[bin]]
+name = "z_sub"
+
+[[bin]]
+name = "z_pull"
+
+[[bin]]
+name = "z_queryable"
+
+[[bin]]
+name = "z_storage"
+
+[[bin]]
+name = "z_get"
+
+[[bin]]
+name = "z_forward"
+
+[[bin]]
+name = "z_liveliness"
+
+[[bin]]
+name = "z_sub_liveliness"
+
+[[bin]]
+name = "z_get_liveliness"
+
+[[bin]]
+name = "z_pub_thr"
+
+[[bin]]
+name = "z_sub_thr"
+
+[[bin]]
+name = "z_pub_shm_thr"
+
+[[bin]]
+name = "z_ping"
+
+[[bin]]
+name = "z_pong"
+
+# Debian package
+[package.metadata.deb]
+maintainer = "David Weis <dweis7@gmail.com>"
+maintainer-scripts = "debian/"
+
+[dependencies]
+anyhow = {version = "1.0", features = ["backtrace"]}
+async-std = {version = "1.12.0", features = ["attributes"]}
+env_logger = "0.10.0"
+flume = "0.10.14"
+futures = "0.3.25"
+json5 = "0.4.1"
+log = "0.4.17"
+rand = {version = "0.8.5", default-features = false, features = ["default"]}
+thiserror = "1.0"
+
+# clap
+# NOTE: The zenoh examples use clap 3.2.23
+# but I wanted to move some tools to is 4.2 so there are two versions of clap
+clap = {version = "4.2", features = ["derive"]}
+old_clap = {version = "3.2.23", package = "clap"}
+
+# zenoh
+zenoh = {version = "0.7.2-rc", features = ["shared-memory"]}
+zenoh-config = "0.7.2-rc"
+zenoh-ext = "0.7.2-rc"
