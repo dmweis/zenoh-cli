@@ -28,4 +28,4 @@ build-docker:
 	
 .PHONY: push-docker-built
 push-docker-built: build-docker
-	rsync -avz --delete docker_out/*.deb $(TARGET_HOST_USER):/home/$(TARGET_USERNAME)/zenoh-cli-built
+	rsync -avz --delete docker_out/*.deb $(TARGET_HOST_USER):/home/$(TARGET_USERNAME)/zenoh-cli-built/
