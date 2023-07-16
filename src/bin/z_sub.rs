@@ -46,6 +46,10 @@ struct Args {
     /// Disable the multicast-based scouting mechanism.
     #[clap(long)]
     no_multicast_scouting: bool,
+
+    /// print the output only
+    #[clap(long)]
+    raw: bool,
 }
 
 #[async_std::main]
@@ -53,24 +57,35 @@ async fn main() {
     // Initiate logging
     env_logger::init();
 
-    let (config, key_expr) = parse_args();
+    let (args, config, key_expr) = parse_args();
 
-    println!("Opening session...");
+    if !args.raw {
+        println!("Opening session...");
+    }
     let session = zenoh::open(config).res().await.unwrap();
 
-    println!("Declaring Subscriber on '{}'...", &key_expr);
+    if !args.raw {
+        println!("Declaring Subscriber on '{}'...", &key_expr);
+    }
 
     let subscriber = session.declare_subscriber(&key_expr).res().await.unwrap();
 
-    println!("Enter 'q' to quit...");
+    if !args.raw {
+        println!("Enter 'q' to quit...");
+    }
     let mut stdin = async_std::io::stdin();
     let mut input = [0_u8];
     loop {
         select!(
             sample = subscriber.recv_async() => {
                 let sample = sample.unwrap();
-                println!("{} ('{}': '{}')",
+                if args.raw {
+                    println!("{}", sample.value);
+                } else {
+                    println!("{} ('{}': '{}')",
                     sample.kind, sample.key_expr.as_str(), sample.value);
+                }
+
             },
 
             _ = stdin.read_exact(&mut input).fuse() => {
@@ -84,7 +99,7 @@ async fn main() {
     }
 }
 
-fn parse_args() -> (Config, KeyExpr<'static>) {
+fn parse_args() -> (Args, Config, KeyExpr<'static>) {
     let args: Args = Args::parse();
 
     let mut config = if let Some(conf_file) = &args.config {
@@ -107,5 +122,5 @@ fn parse_args() -> (Config, KeyExpr<'static>) {
 
     let key_expr = KeyExpr::try_from(&args.key).unwrap().into_owned();
 
-    (config, key_expr)
+    (args, config, key_expr)
 }
