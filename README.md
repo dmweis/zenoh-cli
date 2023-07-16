@@ -1,4 +1,4 @@
-# Zenoh CLI tools
+# (Unofficial) Zenoh CLI tools
 
 Collection of CLI tools for working with [Zenoh](https://zenoh.io/) - [Zenoh repo](https://github.com/eclipse-zenoh/zenoh).  
 
@@ -27,6 +27,10 @@ After install you can run tools by name:
 ```bash
 z_pub  --key FOO --value BAR
 ```
+
+## Warning
+
+These tools are not guaranteed to be kept up to date! I recommend using the original example tools from the [Zenoh github repository](https://github.com/eclipse-zenoh/zenoh) under [examples](https://github.com/eclipse-zenoh/zenoh/tree/master/examples).  
 
 ## Disclaimer
 
