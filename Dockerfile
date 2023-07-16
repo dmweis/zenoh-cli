@@ -28,8 +28,8 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 
 # Build
-cargo build --release
-cargo deb --no-build
+RUN cargo build --release
+RUN cargo deb --no-build
 
 # Copy to exporter
 FROM scratch AS export
