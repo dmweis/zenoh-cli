@@ -1,4 +1,4 @@
-DEB_BUILD_PATH ?= target/debian/zenohh-cli*.deb
+DEB_BUILD_PATH ?= target/debian/zenoh-cli*.deb
 
 .PHONY: build
 build:
