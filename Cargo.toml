@@ -7,7 +7,7 @@ name = "zenoh-cli"
 publish = false
 readme = "README.md"
 repository = "https://github.com/dmweis/zenoh-cli"
-version = "0.1.0"
+version = "0.11.0"
 
 [[bin]]
 name = "z_scout"
@@ -72,29 +72,23 @@ name = "z_ping"
 [[bin]]
 name = "z_pong"
 
+[[bin]]
+name = "z_formats"
+
 # Debian package
 [package.metadata.deb]
 maintainer = "David Weis <dweis7@gmail.com>"
 maintainer-scripts = "debian/"
 
 [dependencies]
-anyhow = {version = "1.0", features = ["backtrace"]}
-async-std = {version = "1.12.0", features = ["attributes"]}
-env_logger = "0.10.0"
-flume = "0.10.14"
-futures = "0.3.25"
-json5 = "0.4.1"
-log = "0.4.17"
+futures = "0.3.30"
 rand = {version = "0.8.5", default-features = false, features = ["default"]}
-thiserror = "1.0"
+tokio = { version = "1.38.0", features = ["full"] } 
 
-# clap
-# NOTE: The zenoh examples use clap 3.2.23
-# but I wanted to move some tools to is 4.2 so there are two versions of clap
-clap = {version = "4.2", features = ["derive"]}
-old_clap = {version = "3.2.23", package = "clap"}
+clap = {version = "4.5.6", features = ["derive"]}
 
 # zenoh
-zenoh = {version = "0.7.2-rc", features = ["shared-memory"]}
-zenoh-config = "0.7.2-rc"
-zenoh-ext = "0.7.2-rc"
+zenoh = {version = "0.11.0", features = ["shared-memory"]}
+zenoh-config = "0.11.0"
+zenoh-ext = "0.11.0"
+zenoh-util = "0.11.0"

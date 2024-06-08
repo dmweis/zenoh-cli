@@ -1,5 +1,3 @@
-use std::io::{stdin, Read};
-
 //
 // Copyright (c) 2023 ZettaScale Technology
 //
@@ -13,14 +11,15 @@ use std::io::{stdin, Read};
 // Contributors:
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
-use old_clap::{App, Arg};
+use clap::Parser;
 use zenoh::config::Config;
 use zenoh::prelude::sync::*;
 use zenoh::publication::CongestionControl;
+use zenoh_cli::CommonArgs;
 
 fn main() {
     // initiate logging
-    env_logger::init();
+    zenoh_util::try_init_log_from_env();
 
     let config = parse_args();
 
@@ -43,46 +42,16 @@ fn main() {
         .callback(move |sample| publisher.put(sample.value).res().unwrap())
         .res()
         .unwrap();
-    for _ in stdin().bytes().take_while(|b| !matches!(b, Ok(b'q'))) {}
+    std::thread::park();
+}
+
+#[derive(clap::Parser, Clone, PartialEq, Eq, Hash, Debug)]
+struct Args {
+    #[command(flatten)]
+    common: CommonArgs,
 }
 
 fn parse_args() -> Config {
-    let args = App::new("zenoh roundtrip pong example")
-        .arg(
-            Arg::from_usage("-m, --mode=[MODE]  'The zenoh session mode (peer by default).")
-                .possible_values(["peer", "client"]),
-        )
-        .arg(Arg::from_usage(
-            "-e, --connect=[ENDPOINT]...   'Endpoints to connect to.'",
-        ))
-        .arg(Arg::from_usage(
-            "-l, --listen=[ENDPOINT]...   'Endpoints to listen on.'",
-        ))
-        .arg(Arg::from_usage(
-            "--no-multicast-scouting 'Disable the multicast-based scouting mechanism.'",
-        ))
-        .arg(Arg::from_usage(
-            "-c, --config=[FILE]      'A configuration file.'",
-        ))
-        .get_matches();
-
-    let mut config = if let Some(conf_file) = args.value_of("config") {
-        Config::from_file(conf_file).unwrap()
-    } else {
-        Config::default()
-    };
-    if let Some(Ok(mode)) = args.value_of("mode").map(|mode| mode.parse()) {
-        config.set_mode(Some(mode)).unwrap();
-    }
-    if let Some(values) = args.values_of("connect") {
-        config.connect.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if let Some(values) = args.values_of("listen") {
-        config.listen.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if args.is_present("no-multicast-scouting") {
-        config.scouting.multicast.set_enabled(Some(false)).unwrap();
-    }
-
-    config
+    let args = Args::parse();
+    args.common.into()
 }

@@ -11,15 +11,16 @@
 // Contributors:
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
-use old_clap::{App, Arg};
+use clap::Parser;
 use std::time::{Duration, Instant};
 use zenoh::config::Config;
 use zenoh::prelude::sync::*;
 use zenoh::publication::CongestionControl;
+use zenoh_cli::CommonArgs;
 
 fn main() {
     // initiate logging
-    env_logger::init();
+    zenoh_util::try_init_log_from_env();
 
     let (config, warmup, size, n) = parse_args();
     let session = zenoh::open(config).res().unwrap();
@@ -75,57 +76,26 @@ fn main() {
     }
 }
 
+#[derive(Parser)]
+struct Args {
+    #[arg(short, long, default_value = "1")]
+    /// The number of seconds to warm up (float)
+    warmup: f64,
+    #[arg(short = 'n', long, default_value = "100")]
+    /// The number of round-trips to measure
+    samples: usize,
+    /// Sets the size of the payload to publish
+    payload_size: usize,
+    #[command(flatten)]
+    common: CommonArgs,
+}
+
 fn parse_args() -> (Config, Duration, usize, usize) {
-    let args = App::new("zenoh roundtrip ping example")
-        .arg(
-            Arg::from_usage("-m, --mode=[MODE]  'The zenoh session mode (peer by default).")
-                .possible_values(["peer", "client"]),
-        )
-        .arg(Arg::from_usage(
-            "-e, --connect=[ENDPOINT]...   'Endpoints to connect to.'",
-        ))
-        .arg(Arg::from_usage(
-            "-l, --listen=[ENDPOINT]...   'Endpoints to listen on.'",
-        ))
-        .arg(
-            Arg::from_usage("-n, --samples=[N]         'The number of round-trips to measure'")
-                .default_value("100"),
-        )
-        .arg(
-            Arg::from_usage("-w, --warmup=[N]          'The number of seconds to warm up'")
-                .default_value("1"),
-        )
-        .arg(Arg::from_usage(
-            "--no-multicast-scouting 'Disable the multicast-based scouting mechanism.'",
-        ))
-        .arg(Arg::from_usage(
-            "-c, --config=[FILE]      'A configuration file.'",
-        ))
-        .arg(Arg::from_usage(
-            "<PAYLOAD_SIZE>          'Sets the size of the payload to publish'",
-        ))
-        .get_matches();
-
-    let mut config = if let Some(conf_file) = args.value_of("config") {
-        Config::from_file(conf_file).unwrap()
-    } else {
-        Config::default()
-    };
-    if let Some(Ok(mode)) = args.value_of("mode").map(|mode| mode.parse()) {
-        config.set_mode(Some(mode)).unwrap();
-    }
-    if let Some(values) = args.values_of("connect") {
-        config.connect.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if let Some(values) = args.values_of("listen") {
-        config.listen.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if args.is_present("no-multicast-scouting") {
-        config.scouting.multicast.set_enabled(Some(false)).unwrap();
-    }
-    let n: usize = args.value_of("samples").unwrap().parse().unwrap();
-    let w: f64 = args.value_of("warmup").unwrap().parse().unwrap();
-    let size: usize = args.value_of("PAYLOAD_SIZE").unwrap().parse().unwrap();
-
-    (config, Duration::from_secs_f64(w), size, n)
+    let args = Args::parse();
+    (
+        args.common.into(),
+        Duration::from_secs_f64(args.warmup),
+        args.payload_size,
+        args.samples,
+    )
 }

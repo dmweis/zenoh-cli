@@ -11,18 +11,16 @@
 // Contributors:
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
-use async_std::prelude::FutureExt;
-use async_std::task::sleep;
-use futures::prelude::*;
-use old_clap::{App, Arg};
+use clap::Parser;
 use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
+use zenoh_cli::CommonArgs;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() {
     // initiate logging
-    env_logger::init();
+    zenoh_util::try_init_log_from_env();
 
     let (config, key_expr) = parse_args();
 
@@ -34,85 +32,36 @@ async fn main() {
     let subscriber = session
         .declare_subscriber(&key_expr)
         .pull_mode()
-        .res()
-        .await
-        .unwrap();
-
-    println!("Press <enter> to pull data...");
-
-    // Define the future to handle incoming samples of the subscription.
-    let subs = async {
-        while let Ok(sample) = subscriber.recv_async().await {
+        .callback(|sample| {
             println!(
                 ">> [Subscriber] Received {} ('{}': '{}')",
                 sample.kind,
                 sample.key_expr.as_str(),
                 sample.value,
             );
-        }
-    };
+        })
+        .res()
+        .await
+        .unwrap();
 
-    // Define the future to handle keyboard's input.
-    let keyb = async {
-        let mut stdin = async_std::io::stdin();
-        let mut input = [0_u8];
-        loop {
-            stdin.read_exact(&mut input).await.unwrap();
-            match input[0] {
-                b'q' => break,
-                0 => sleep(Duration::from_secs(1)).await,
-                _ => subscriber.pull().res().await.unwrap(),
-            }
-        }
-    };
-
-    // Execute both futures concurrently until one of them returns.
-    subs.race(keyb).await;
+    println!("Press CTRL-C to quit...");
+    for idx in 0..u32::MAX {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        println!("[{idx:4}] Pulling...");
+        subscriber.pull().res().await.unwrap();
+    }
 }
 
-fn parse_args() -> (Config, String) {
-    let args = App::new("zenoh pull example")
-        .arg(
-            Arg::from_usage("-m, --mode=[MODE]  'The zenoh session mode (peer by default).")
-                .possible_values(["peer", "client"]),
-        )
-        .arg(Arg::from_usage(
-            "-e, --connect=[ENDPOINT]...   'Endpoints to connect to.'",
-        ))
-        .arg(Arg::from_usage(
-            "-l, --listen=[ENDPOINT]...   'Endpoints to listen on.'",
-        ))
-        .arg(
-            Arg::from_usage("-k, --key=[KEYEXPR] 'The key expression matching resources to pull'")
-                .default_value("demo/example/**"),
-        )
-        .arg(Arg::from_usage(
-            "-c, --config=[FILE]      'A configuration file.'",
-        ))
-        .arg(Arg::from_usage(
-            "--no-multicast-scouting 'Disable the multicast-based scouting mechanism.'",
-        ))
-        .get_matches();
+#[derive(clap::Parser, Clone, PartialEq, Eq, Hash, Debug)]
+struct SubArgs {
+    #[arg(short, long, default_value = "demo/example/**")]
+    /// The Key Expression to subscribe to.
+    key: KeyExpr<'static>,
+    #[command(flatten)]
+    common: CommonArgs,
+}
 
-    let mut config = if let Some(conf_file) = args.value_of("config") {
-        Config::from_file(conf_file).unwrap()
-    } else {
-        Config::default()
-    };
-    if let Some(Ok(mode)) = args.value_of("mode").map(|mode| mode.parse()) {
-        config.set_mode(Some(mode)).unwrap();
-    }
-    if let Some(values) = args.values_of("connect") {
-        config.connect.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if let Some(values) = args.values_of("listen") {
-        config.listen.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if args.is_present("no-multicast-scouting") {
-        config.scouting.multicast.set_enabled(Some(false)).unwrap();
-    }
-
-    let key_expr = args.value_of("key").unwrap().to_string();
-
-    (config, key_expr)
+fn parse_args() -> (Config, KeyExpr<'static>) {
+    let args = SubArgs::parse();
+    (args.common.into(), args.key)
 }

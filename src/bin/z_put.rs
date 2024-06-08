@@ -14,45 +14,14 @@
 use clap::Parser;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
+use zenoh_cli::CommonArgs;
 
-#[derive(Parser, Debug)]
-#[command()]
-struct Args {
-    /// The key expression to publish onto.
-    #[clap(short, long)]
-    key: String,
-
-    /// The value to publish.
-    #[clap(short, long)]
-    value: String,
-
-    /// The zenoh session mode (peer by default).
-    #[clap(short, long)]
-    mode: Option<zenoh::scouting::WhatAmI>,
-
-    /// Endpoints to connect to.
-    #[clap(short = 'e', long)]
-    connect: Vec<zenoh_config::EndPoint>,
-
-    /// Endpoints to listen on.
-    #[clap(long)]
-    listen: Vec<zenoh_config::EndPoint>,
-
-    /// A configuration file.
-    #[clap(short, long)]
-    config: Option<String>,
-
-    /// Disable the multicast-based scouting mechanism.
-    #[clap(long)]
-    no_multicast_scouting: bool,
-}
-
-#[async_std::main]
+#[tokio::main]
 async fn main() {
     // initiate logging
-    env_logger::init();
+    zenoh_util::try_init_log_from_env();
 
-    let (_args, config, key_expr, value) = parse_args();
+    let (config, key_expr, value) = parse_args();
 
     println!("Opening session...");
     let session = zenoh::open(config).res().await.unwrap();
@@ -61,29 +30,19 @@ async fn main() {
     session.put(&key_expr, value).res().await.unwrap();
 }
 
-fn parse_args() -> (Args, Config, String, String) {
-    let args: Args = Args::parse();
+#[derive(clap::Parser, Clone, PartialEq, Eq, Hash, Debug)]
+struct Args {
+    #[arg(short, long, default_value = "demo/example/zenoh-rs-put")]
+    /// The key expression to write to.
+    key: KeyExpr<'static>,
+    #[arg(short, long, default_value = "Put from Rust!")]
+    /// The value to write.
+    value: String,
+    #[command(flatten)]
+    common: CommonArgs,
+}
 
-    let mut config = if let Some(conf_file) = &args.config {
-        Config::from_file(conf_file).unwrap()
-    } else {
-        Config::default()
-    };
-    if let Some(mode) = args.mode {
-        config.set_mode(Some(mode)).unwrap();
-    }
-    if !args.connect.is_empty() {
-        config.connect.endpoints = args.connect.clone();
-    }
-    if !args.listen.is_empty() {
-        config.listen.endpoints = args.listen.clone();
-    }
-    if args.no_multicast_scouting {
-        config.scouting.multicast.set_enabled(Some(false)).unwrap();
-    }
-
-    let key_expr = args.key.clone();
-    let value = args.value.clone();
-
-    (args, config, key_expr, value)
+fn parse_args() -> (Config, KeyExpr<'static>, String) {
+    let args = Args::parse();
+    (args.common.into(), args.key, args.value)
 }

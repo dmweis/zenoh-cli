@@ -11,11 +11,11 @@
 // Contributors:
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
-use old_clap::{App, Arg};
-use std::io::{stdin, Read};
+use clap::Parser;
 use std::time::Instant;
 use zenoh::config::Config;
 use zenoh::prelude::sync::*;
+use zenoh_cli::CommonArgs;
 
 struct Stats {
     round_count: usize,
@@ -57,7 +57,10 @@ impl Stats {
 }
 impl Drop for Stats {
     fn drop(&mut self) {
-        let elapsed = self.global_start.unwrap().elapsed().as_secs_f64();
+        let Some(global_start) = self.global_start else {
+            return;
+        };
+        let elapsed = global_start.elapsed().as_secs_f64();
         let total = self.round_size * self.finished_rounds + self.round_count;
         let throughtput = total as f64 / elapsed;
         println!("Received {total} messages over {elapsed:.2}s: {throughtput}msg/s");
@@ -66,9 +69,14 @@ impl Drop for Stats {
 
 fn main() {
     // initiate logging
-    env_logger::init();
+    zenoh_util::try_init_log_from_env();
 
-    let (config, m, n) = parse_args();
+    let (mut config, m, n) = parse_args();
+
+    // A probing procedure for shared memory is performed upon session opening. To enable `z_pub_shm_thr` to operate
+    // over shared memory (and to not fallback on network mode), shared memory needs to be enabled also on the
+    // subscriber side. By doing so, the probing procedure will succeed and shared memory will operate as expected.
+    config.transport.shared_memory.set_enabled(true).unwrap();
 
     let session = zenoh::open(config).res().unwrap();
 
@@ -86,64 +94,23 @@ fn main() {
         .res()
         .unwrap();
 
-    for byte in stdin().bytes() {
-        match byte {
-            Ok(b'q') => break,
-            _ => std::thread::yield_now(),
-        }
-    }
+    println!("Press CTRL-C to quit...");
+    std::thread::park();
+}
+
+#[derive(clap::Parser, Clone, PartialEq, Eq, Hash, Debug)]
+struct Args {
+    #[arg(short, long, default_value = "10")]
+    /// Number of throughput measurements.
+    samples: usize,
+    #[arg(short, long, default_value = "100000")]
+    /// Number of messages in each throughput measurements.
+    number: usize,
+    #[command(flatten)]
+    common: CommonArgs,
 }
 
 fn parse_args() -> (Config, usize, usize) {
-    let args = App::new("zenoh throughput sub example")
-        .arg(
-            Arg::from_usage("-m, --mode=[MODE]  'The zenoh session mode (peer by default).")
-                .possible_values(["peer", "client"]),
-        )
-        .arg(Arg::from_usage(
-            "-e, --connect=[ENDPOINT]...   'Endpoints to connect to.'",
-        ))
-        .arg(Arg::from_usage(
-            "-l, --listen=[ENDPOINT]...   'Endpoints to listen on.'",
-        ))
-        .arg(
-            Arg::from_usage("-s, --samples=[number] 'Number of throughput measurements.'")
-                .default_value("10"),
-        )
-        .arg(
-            Arg::from_usage(
-                "-n, --number=[number] 'Number of messages in each throughput measurements.'",
-            )
-            .default_value("100000"),
-        )
-        .arg(Arg::from_usage(
-            "-c, --config=[FILE]      'A configuration file.'",
-        ))
-        .arg(Arg::from_usage(
-            "--no-multicast-scouting 'Disable the multicast-based scouting mechanism.'",
-        ))
-        .get_matches();
-
-    let mut config = if let Some(conf_file) = args.value_of("config") {
-        Config::from_file(conf_file).unwrap()
-    } else {
-        Config::default()
-    };
-    if let Some(Ok(mode)) = args.value_of("mode").map(|mode| mode.parse()) {
-        config.set_mode(Some(mode)).unwrap();
-    }
-    if let Some(values) = args.values_of("connect") {
-        config.connect.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if let Some(values) = args.values_of("listen") {
-        config.listen.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if args.is_present("no-multicast-scouting") {
-        config.scouting.multicast.set_enabled(Some(false)).unwrap();
-    }
-
-    let samples: usize = args.value_of("samples").unwrap().parse().unwrap();
-    let number: usize = args.value_of("number").unwrap().parse().unwrap();
-
-    (config, samples, number)
+    let args = Args::parse();
+    (args.common.into(), args.samples, args.number)
 }

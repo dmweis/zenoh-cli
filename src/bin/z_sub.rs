@@ -11,116 +11,65 @@
 // Contributors:
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
-use async_std::task::sleep;
 use clap::Parser;
-use futures::prelude::*;
-use futures::select;
-use std::convert::TryFrom;
-use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
+use zenoh_cli::CommonArgs;
 
-#[derive(Parser, Debug)]
-#[command()]
-struct Args {
-    /// The key expression to publish onto.
-    #[clap(short, long)]
-    key: String,
+#[tokio::main]
+async fn main() {
+    // Initiate logging
+    zenoh_util::try_init_log_from_env();
 
-    /// The zenoh session mode (peer by default).
-    #[clap(short, long)]
-    mode: Option<zenoh::scouting::WhatAmI>,
+    let (mut config, key_expr, raw) = parse_args();
 
-    /// Endpoints to connect to.
-    #[clap(short = 'e', long)]
-    connect: Vec<zenoh_config::EndPoint>,
+    // A probing procedure for shared memory is performed upon session opening. To enable `z_pub_shm` to operate
+    // over shared memory (and to not fallback on network mode), shared memory needs to be enabled also on the
+    // subscriber side. By doing so, the probing procedure will succeed and shared memory will operate as expected.
+    config.transport.shared_memory.set_enabled(true).unwrap();
 
-    /// Endpoints to listen on.
-    #[clap(long)]
-    listen: Vec<zenoh_config::EndPoint>,
+    if !raw {
+        println!("Opening session...");
+    }
+    let session = zenoh::open(config).res().await.unwrap();
 
-    /// A configuration file.
-    #[clap(short, long)]
-    config: Option<String>,
+    if !raw {
+        println!("Declaring Subscriber on '{}'...", &key_expr);
+    }
 
-    /// Disable the multicast-based scouting mechanism.
-    #[clap(long)]
-    no_multicast_scouting: bool,
+    let subscriber = session.declare_subscriber(&key_expr).res().await.unwrap();
+
+    if !raw {
+        println!("Press CTRL-C to quit...");
+    }
+    while let Ok(sample) = subscriber.recv_async().await {
+        if raw {
+            println!("{}", sample.value);
+        } else {
+            println!(
+                ">> [Subscriber] Received {} ('{}': '{}')",
+                sample.kind,
+                sample.key_expr.as_str(),
+                sample.value
+            );
+        }
+    }
+}
+
+#[derive(clap::Parser, Clone, PartialEq, Eq, Hash, Debug)]
+struct SubArgs {
+    #[arg(short, long, default_value = "demo/example/**")]
+    /// The Key Expression to subscribe to.
+    key: KeyExpr<'static>,
+    #[command(flatten)]
+    common: CommonArgs,
 
     /// print the output only
     #[clap(long)]
     raw: bool,
 }
 
-#[async_std::main]
-async fn main() {
-    // Initiate logging
-    env_logger::init();
-
-    let (args, config, key_expr) = parse_args();
-
-    if !args.raw {
-        println!("Opening session...");
-    }
-    let session = zenoh::open(config).res().await.unwrap();
-
-    if !args.raw {
-        println!("Declaring Subscriber on '{}'...", &key_expr);
-    }
-
-    let subscriber = session.declare_subscriber(&key_expr).res().await.unwrap();
-
-    if !args.raw {
-        println!("Enter 'q' to quit...");
-    }
-    let mut stdin = async_std::io::stdin();
-    let mut input = [0_u8];
-    loop {
-        select!(
-            sample = subscriber.recv_async() => {
-                let sample = sample.unwrap();
-                if args.raw {
-                    println!("{}", sample.value);
-                } else {
-                    println!("{} ('{}': '{}')",
-                    sample.kind, sample.key_expr.as_str(), sample.value);
-                }
-
-            },
-
-            _ = stdin.read_exact(&mut input).fuse() => {
-                match input[0] {
-                    b'q' => break,
-                    0 => sleep(Duration::from_secs(1)).await,
-                    _ => (),
-                }
-            }
-        );
-    }
-}
-
-fn parse_args() -> (Args, Config, KeyExpr<'static>) {
-    let args: Args = Args::parse();
-
-    let mut config = if let Some(conf_file) = &args.config {
-        Config::from_file(conf_file).unwrap()
-    } else {
-        Config::default()
-    };
-    if let Some(mode) = args.mode {
-        config.set_mode(Some(mode)).unwrap();
-    }
-    if !args.connect.is_empty() {
-        config.connect.endpoints = args.connect.clone();
-    }
-    if !args.listen.is_empty() {
-        config.listen.endpoints = args.listen.clone();
-    }
-    if args.no_multicast_scouting {
-        config.scouting.multicast.set_enabled(Some(false)).unwrap();
-    }
-
-    let key_expr = KeyExpr::try_from(&args.key).unwrap().into_owned();
-
-    (args, config, key_expr)
+fn parse_args() -> (Config, KeyExpr<'static>, bool) {
+    let args = SubArgs::parse();
+    (args.common.into(), args.key, args.raw)
 }

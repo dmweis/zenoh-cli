@@ -13,19 +13,17 @@
 //
 #![recursion_limit = "256"]
 
-use async_std::task::sleep;
-use futures::prelude::*;
+use clap::Parser;
 use futures::select;
-use old_clap::{App, Arg};
 use std::collections::HashMap;
-use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
+use zenoh_cli::CommonArgs;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() {
     // initiate logging
-    env_logger::init();
+    zenoh_util::try_init_log_from_env();
 
     let (config, key_expr, complete) = parse_args();
 
@@ -45,9 +43,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Enter 'q' to quit...");
-    let mut stdin = async_std::io::stdin();
-    let mut input = [0u8];
+    println!("Press CTRL-C to quit...");
     loop {
         select!(
             sample = subscriber.recv_async() => {
@@ -69,66 +65,24 @@ async fn main() {
                         query.reply(Ok(sample.clone())).res().await.unwrap();
                     }
                 }
-            },
-
-            _ = stdin.read_exact(&mut input).fuse() => {
-                match input[0] {
-                    b'q' => break,
-                    0 => sleep(Duration::from_secs(1)).await,
-                    _ => (),
-                }
             }
         );
     }
 }
 
-fn parse_args() -> (Config, String, bool) {
-    let args = App::new("zenoh storage example")
-        .arg(
-            Arg::from_usage("-m, --mode=[MODE]  'The zenoh session mode (peer by default).")
-                .possible_values(["peer", "client"]),
-        )
-        .arg(Arg::from_usage(
-            "-e, --connect=[ENDPOINT]...   'Endpoints to connect to.'",
-        ))
-        .arg(Arg::from_usage(
-            "-l, --listen=[ENDPOINT]...   'Endpoints to listen on.'",
-        ))
-        .arg(
-            Arg::from_usage("-k, --key=[KEYEXPR] 'The selection of resources to store'")
-                .default_value("demo/example/**"),
-        )
-        .arg(Arg::from_usage(
-            "-c, --config=[FILE]      'A configuration file.'",
-        ))
-        .arg(Arg::from_usage(
-            "--no-multicast-scouting 'Disable the multicast-based scouting mechanism.'",
-        ))
-        .arg(Arg::from_usage(
-            "--complete 'Declare the storage as complete w.r.t. the key expression.'",
-        ))
-        .get_matches();
+#[derive(clap::Parser, Clone, PartialEq, Eq, Hash, Debug)]
+struct Args {
+    #[arg(short, long, default_value = "demo/example/**")]
+    /// The selection of resources to store.
+    key: KeyExpr<'static>,
+    #[arg(long)]
+    /// Declare the storage as complete w.r.t. the key expression.
+    complete: bool,
+    #[command(flatten)]
+    common: CommonArgs,
+}
 
-    let mut config = if let Some(conf_file) = args.value_of("config") {
-        Config::from_file(conf_file).unwrap()
-    } else {
-        Config::default()
-    };
-    if let Some(Ok(mode)) = args.value_of("mode").map(|mode| mode.parse()) {
-        config.set_mode(Some(mode)).unwrap();
-    }
-    if let Some(values) = args.values_of("connect") {
-        config.connect.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if let Some(values) = args.values_of("listen") {
-        config.listen.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if args.is_present("no-multicast-scouting") {
-        config.scouting.multicast.set_enabled(Some(false)).unwrap();
-    }
-
-    let key_expr = args.value_of("key").unwrap().to_string();
-    let complete = args.is_present("complete");
-
-    (config, key_expr, complete)
+fn parse_args() -> (Config, KeyExpr<'static>, bool) {
+    let args = Args::parse();
+    (args.common.into(), args.key, args.complete)
 }

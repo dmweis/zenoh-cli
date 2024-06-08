@@ -11,97 +11,28 @@
 // Contributors:
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
-use async_std::prelude::FutureExt;
-use clap::Parser;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
 use zenoh::scouting::WhatAmI;
 
-#[derive(Parser, Debug)]
-#[command()]
-struct Args {
-    /// The zenoh session mode (peer by default).
-    #[clap(short, long)]
-    mode: Option<zenoh::scouting::WhatAmI>,
-
-    /// Endpoints to connect to.
-    #[clap(short = 'e', long)]
-    connect: Vec<zenoh_config::EndPoint>,
-
-    /// Endpoints to listen on.
-    #[clap(long)]
-    listen: Vec<zenoh_config::EndPoint>,
-
-    /// A configuration file.
-    #[clap(short, long)]
-    config: Option<String>,
-
-    /// Disable the multicast-based scouting mechanism.
-    #[clap(long)]
-    no_multicast_scouting: bool,
-
-    /// The time for the scouting phase. (milliseconds)
-    #[clap(long, default_value = "1000")]
-    scout_time_ms: u64,
-}
-
-fn parse_args() -> (Args, Config) {
-    let args: Args = Args::parse();
-
-    let mut config = if let Some(conf_file) = &args.config {
-        Config::from_file(conf_file).unwrap()
-    } else {
-        Config::default()
-    };
-    if let Some(mode) = args.mode {
-        config.set_mode(Some(mode)).unwrap();
-    }
-    if !args.connect.is_empty() {
-        config.connect.endpoints = args.connect.clone();
-    }
-    if !args.listen.is_empty() {
-        config.listen.endpoints = args.listen.clone();
-    }
-    if args.no_multicast_scouting {
-        config.scouting.multicast.set_enabled(Some(false)).unwrap();
-    }
-
-    (args, config)
-}
-
-#[async_std::main]
+#[tokio::main]
 async fn main() {
     // initiate logging
-    env_logger::init();
-
-    let (args, config) = parse_args();
+    zenoh_util::try_init_log_from_env();
 
     println!("Scouting...");
-    let receiver = zenoh::scout(WhatAmI::Peer | WhatAmI::Router, config)
+    let receiver = zenoh::scout(WhatAmI::Peer | WhatAmI::Router, Config::default())
         .res()
         .await
         .unwrap();
 
-    let _ = async {
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(1), async {
         while let Ok(hello) = receiver.recv_async().await {
-            let mut message = format!(
-                "Hello from {:?} with id {:?}\n",
-                hello.whatami,
-                hello
-                    .zid
-                    .map(|id| id.to_string())
-                    .unwrap_or(String::from("N/A"))
-            );
-            message.push_str("  Locators:\n");
-            for locator in hello.locators {
-                message.push_str(&format!("  - {}\n", locator));
-            }
-            println!("{}", message);
+            println!("{hello}");
         }
-    }
-    .timeout(std::time::Duration::from_millis(args.scout_time_ms))
+    })
     .await;
 
     // stop scouting
-    drop(receiver);
+    receiver.stop();
 }

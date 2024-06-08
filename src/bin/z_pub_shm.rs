@@ -11,22 +11,27 @@
 // Contributors:
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
-use async_std::task::sleep;
-use old_clap::{App, Arg};
+use clap::Parser;
 use std::time::Duration;
 use zenoh::config::Config;
 use zenoh::prelude::r#async::*;
 use zenoh::shm::SharedMemoryManager;
+use zenoh_cli::CommonArgs;
 
 const N: usize = 10;
 const K: u32 = 3;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), zenoh::Error> {
     // Initiate logging
-    env_logger::init();
+    zenoh_util::try_init_log_from_env();
 
-    let (config, path, value) = parse_args();
+    let (mut config, path, value) = parse_args();
+
+    // A probing procedure for shared memory is performed upon session opening. To enable `z_pub_shm` to operate
+    // over shared memory (and to not fallback on network mode), shared memory needs to be enabled also on the
+    // subscriber side. By doing so, the probing procedure will succeed and shared memory will operate as expected.
+    config.transport.shared_memory.set_enabled(true).unwrap();
 
     println!("Opening session...");
     let session = zenoh::open(config).res().await.unwrap();
@@ -38,11 +43,13 @@ async fn main() -> Result<(), zenoh::Error> {
     println!("Allocating Shared Memory Buffer...");
     let publisher = session.declare_publisher(&path).res().await.unwrap();
 
+    println!("Press CTRL-C to quit...");
     for idx in 0..(K * N as u32) {
+        tokio::time::sleep(Duration::from_secs(1)).await;
         let mut sbuf = match shm.alloc(1024) {
             Ok(buf) => buf,
             Err(_) => {
-                sleep(Duration::from_millis(100)).await;
+                tokio::time::sleep(Duration::from_millis(100)).await;
                 println!(
                     "Afer failing allocation the GC collected: {} bytes -- retrying",
                     shm.garbage_collect()
@@ -88,7 +95,6 @@ async fn main() -> Result<(), zenoh::Error> {
             let defrag = shm.defragment();
             println!("De-framented {defrag} bytes");
         }
-        // sleep(Duration::from_millis(100)).await;
         // Dropping the SharedMemoryBuf means to free it.
         drop(sbuf);
     }
@@ -99,54 +105,19 @@ async fn main() -> Result<(), zenoh::Error> {
     Ok(())
 }
 
-fn parse_args() -> (Config, String, String) {
-    let args = App::new("zenoh shared-memory pub example")
-        .arg(
-            Arg::from_usage("-m, --mode=[MODE] 'The zenoh session mode (peer by default).")
-                .possible_values(["peer", "client"]),
-        )
-        .arg(Arg::from_usage(
-            "-e, --connect=[ENDPOINT]...  'Endpoints to connect to.'",
-        ))
-        .arg(Arg::from_usage(
-            "-l, --listen=[ENDPOINT]...   'Endpoints to listen on.'",
-        ))
-        .arg(
-            Arg::from_usage("-p, --path=[PATH]        'The key expression to publish onto.'")
-                .default_value("demo/example/zenoh-rs-pub"),
-        )
-        .arg(
-            Arg::from_usage("-v, --value=[VALUE]      'The value of to publish.'")
-                .default_value("Pub from SharedMemory Rust!"),
-        )
-        .arg(Arg::from_usage(
-            "-c, --config=[FILE]      'A configuration file.'",
-        ))
-        .arg(Arg::from_usage(
-            "--no-multicast-scouting 'Disable the multicast-based scouting mechanism.'",
-        ))
-        .get_matches();
+#[derive(clap::Parser, Clone, PartialEq, Eq, Hash, Debug)]
+struct Args {
+    #[arg(short, long, default_value = "demo/example/zenoh-rs-pub")]
+    /// The key expression to publish onto.
+    path: KeyExpr<'static>,
+    #[arg(short, long, default_value = "Pub from SharedMemory Rust!")]
+    /// The value of to publish.
+    value: String,
+    #[command(flatten)]
+    common: CommonArgs,
+}
 
-    let mut config = if let Some(conf_file) = args.value_of("config") {
-        Config::from_file(conf_file).unwrap()
-    } else {
-        Config::default()
-    };
-    if let Some(Ok(mode)) = args.value_of("mode").map(|mode| mode.parse()) {
-        config.set_mode(Some(mode)).unwrap();
-    }
-    if let Some(values) = args.values_of("connect") {
-        config.connect.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if let Some(values) = args.values_of("listen") {
-        config.listen.endpoints = values.map(|v| v.parse().unwrap()).collect();
-    }
-    if args.is_present("no-multicast-scouting") {
-        config.scouting.multicast.set_enabled(Some(false)).unwrap();
-    }
-
-    let path = args.value_of("path").unwrap();
-    let value = args.value_of("value").unwrap();
-
-    (config, path.to_string(), value.to_string())
+fn parse_args() -> (Config, KeyExpr<'static>, String) {
+    let args = Args::parse();
+    (args.common.into(), args.path, args.value)
 }
