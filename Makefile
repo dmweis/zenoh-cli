@@ -40,7 +40,7 @@ gh-version-exists:
 
 .PHONY: gh-upload-arm64
 gh-upload-arm64: build-docker
-	gh release upload v$$(cargo get package.version) --clobber docker_out/zenoh-cli.deb docker_out/zenoh-cli_*.deb
+	gh release upload v$$(cargo get package.version) --clobber docker_out/zenoh-cli-arm64.deb docker_out/zenoh-cli_*.deb
 	@echo deb image at https://github.com/dmweis/zenoh-cli/releases/latest/download/zenoh-cli-arm64.deb
 
 .PHONY: gh-upload-amd64
