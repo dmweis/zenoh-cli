@@ -34,3 +34,4 @@ RUN cargo deb --no-build
 # Copy to exporter
 FROM scratch AS export
 COPY --from=builder /app/target/debian/zenoh-cli*.deb /
+COPY --from=builder /app/target/debian/zenoh-cli*.deb /zenoh-cli-arm64.deb
