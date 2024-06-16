@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["FORMAT_INNER"],"fn":["formatter","parse"],"struct":["Format","Formatter","Parsed"]};

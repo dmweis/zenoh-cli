@@ -1,0 +1,1 @@
+searchState.loadedDescShard("z_pub_shm", 0, "Returns the argument unchanged.\nCalls <code>U::from(self)</code>.\nThe key expression to publish onto.\nThe value of to publish.")

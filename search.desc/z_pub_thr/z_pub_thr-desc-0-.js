@@ -1,0 +1,1 @@
+searchState.loadedDescShard("z_pub_thr", 0, "Returns the argument unchanged.\nCalls <code>U::from(self)</code>.\nNumber of messages in each throughput measurements\nSets the size of the payload to publish\nPrint the statistics\nPriority for sending data")

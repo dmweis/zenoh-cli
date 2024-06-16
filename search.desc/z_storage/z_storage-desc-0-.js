@@ -1,0 +1,1 @@
+searchState.loadedDescShard("z_storage", 0, "Declare the storage as complete w.r.t. the key expression.\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.\nThe selection of resources to store.")

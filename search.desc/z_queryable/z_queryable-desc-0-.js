@@ -1,0 +1,1 @@
+searchState.loadedDescShard("z_queryable", 0, "Declare the queryable as complete w.r.t. the key …\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.\nThe key expression matching queries to reply to.\nThe value to reply to queries.")
