@@ -1,5 +1,7 @@
 .vscode
 
+/tmp/*
+
 /target
 /Cargo.lock
 /docker_out
