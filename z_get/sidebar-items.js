@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Qt"],"fn":["main","parse_args"],"struct":["Args"]};

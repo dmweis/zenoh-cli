@@ -1,0 +1,1 @@
+searchState.loadedDescShard("z_liveliness", 0, "Returns the argument unchanged.\nCalls <code>U::from(self)</code>.\nThe key expression of the liveliness token.")

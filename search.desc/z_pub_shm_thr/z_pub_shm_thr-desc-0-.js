@@ -1,0 +1,1 @@
+searchState.loadedDescShard("z_pub_shm_thr", 0, "Returns the argument unchanged.\nCalls <code>U::from(self)</code>.\nSets the size of the payload to publish.\nshared memory size in MBytes.")
