@@ -8,6 +8,10 @@ DEB_BUILD_PATH ?= target/debian/zenoh-cli*.deb
 build:
 	cargo build --release
 
+.PHONY: install-cargo
+install-cargo:
+	cargo install --path .
+
 .PHONY: build-deb
 build-deb: build
 	cargo deb --no-build
